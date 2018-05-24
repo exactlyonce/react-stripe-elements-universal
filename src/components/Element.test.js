@@ -23,10 +23,17 @@ describe('Element', () => {
       create: jest.fn().mockReturnValue(elementMock),
     };
     context = {
-      elements: elementsMock,
+      addElementsLoadListener: fn => fn(elementsMock),
       registerElement: jest.fn(),
       unregisterElement: jest.fn(),
     };
+  });
+
+  it('should pass id to the DOM element', () => {
+    const id = 'my-id';
+    const CardElement = Element('card', {sourceType: 'card'});
+    const element = shallow(<CardElement id={id} />, {context});
+    expect(element.find('#my-id').length).toBe(1);
   });
 
   it('should pass className to the DOM element', () => {
@@ -65,13 +72,21 @@ describe('Element', () => {
     const CardElement = Element('card', {sourceType: 'card'});
     const onReadyMock = jest.fn();
     const elementRefMock = jest.fn();
+
+    const originalConsoleWarn = global.console.warn;
+    const mockConsoleWarn = jest.fn();
+    global.console.warn = mockConsoleWarn;
+
     mount(<CardElement onReady={onReadyMock} elementRef={elementRefMock} />, {
       context,
     });
 
     expect(elementMock.on.mock.calls[0][0]).toBe('ready');
     expect(elementRefMock).toHaveBeenCalledWith(elementMock);
-    expect(onReadyMock).toHaveBeenCalled();
+    expect(onReadyMock).toHaveBeenCalledWith(elementMock);
+    expect(mockConsoleWarn.mock.calls[0][0]).toMatch(/deprecated/);
+
+    global.console.warn = originalConsoleWarn;
   });
 
   it('should update the Element when props change', () => {
@@ -98,5 +113,18 @@ describe('Element', () => {
     expect(elementMock.update).toHaveBeenCalledWith({
       style: {base: {fontSize: '20px'}},
     });
+  });
+
+  it("re-rendering with new props should still work if addElementsLoadListener hasn't fired yet", () => {
+    // no-op function so that any registered listeners are never woken up
+    context.addElementsLoadListener = () => {};
+
+    const placeholder = 'hello';
+    const CardElement = Element('card', {sourceType: 'card'});
+    const element = shallow(<CardElement placeholder={placeholder} />, {
+      context,
+    });
+
+    expect(() => element.setProps({placeholder: 'placeholder'})).not.toThrow();
   });
 });

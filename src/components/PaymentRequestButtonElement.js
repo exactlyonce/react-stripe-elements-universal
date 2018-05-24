@@ -2,11 +2,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import shallowEqual from '../utils/shallowEqual';
-import type {ElementContext} from './Elements';
+import {type ElementContext, elementContextTypes} from './Elements';
 
 type Props = {
-  className: string,
-  elementRef: Function,
+  id?: string,
+  className?: string,
+  // DEPRECATED; remove in 2.0.0+
+  elementRef?: Function,
   onBlur: Function,
   onClick: Function,
   onFocus: Function,
@@ -22,6 +24,7 @@ const noop = () => {};
 
 const _extractOptions = (props: Props): Object => {
   const {
+    id,
     className,
     elementRef,
     onBlur,
@@ -36,6 +39,7 @@ const _extractOptions = (props: Props): Object => {
 
 class PaymentRequestButtonElement extends React.Component<Props> {
   static propTypes = {
+    id: PropTypes.string,
     className: PropTypes.string,
     elementRef: PropTypes.func,
     onBlur: PropTypes.func,
@@ -49,40 +53,48 @@ class PaymentRequestButtonElement extends React.Component<Props> {
     }).isRequired,
   };
   static defaultProps = {
-    className: '',
-    elementRef: noop,
+    id: undefined,
+    className: undefined,
+    elementRef: undefined,
     onBlur: noop,
     onClick: noop,
     onFocus: noop,
     onReady: noop,
   };
 
-  static contextTypes = {
-    elements: PropTypes.object,
-    registerElement: PropTypes.func.isRequired,
-    unregisterElement: PropTypes.func.isRequired,
-  };
+  static contextTypes = elementContextTypes;
 
   constructor(props: Props, context: ElementContext) {
     super(props, context);
 
     const options = _extractOptions(props);
-    this._element = this.context.elements.create('paymentRequestButton', {
-      paymentRequest: props.paymentRequest,
-      ...options,
-    });
+    // We keep track of the extracted options on this._options to avoid re-rendering.
+    // (We would unnecessarily re-render if we were tracking them with state.)
     this._options = options;
-    this._element.on('ready', () => {
-      this.props.elementRef(this._element);
-      this.props.onReady();
-    });
-    this._element.on('focus', (...args) => this.props.onFocus(...args));
-    this._element.on('click', (...args) => this.props.onClick(...args));
-    this._element.on('blur', (...args) => this.props.onBlur(...args));
   }
 
   componentDidMount() {
-    this._element.mount(this._ref);
+    this.context.addElementsLoadListener((elements: ElementsShape) => {
+      this._element = elements.create('paymentRequestButton', {
+        paymentRequest: this.props.paymentRequest,
+        ...this._options,
+      });
+      this._element.on('ready', () => {
+        if (this.props.elementRef) {
+          if (window.console && window.console.warn) {
+            console.warn(
+              "'elementRef()' is deprecated and will be removed in a future version of react-stripe-elements. Please use 'onReady()' instead."
+            );
+          }
+          this.props.elementRef(this._element);
+        }
+        this.props.onReady(this._element);
+      });
+      this._element.on('focus', (...args) => this.props.onFocus(...args));
+      this._element.on('click', (...args) => this.props.onClick(...args));
+      this._element.on('blur', (...args) => this.props.onBlur(...args));
+      this._element.mount(this._ref);
+    });
   }
   componentWillReceiveProps(nextProps: Props) {
     if (this.props.paymentRequest !== nextProps.paymentRequest) {
@@ -113,7 +125,13 @@ class PaymentRequestButtonElement extends React.Component<Props> {
   };
 
   render() {
-    return <div className={this.props.className} ref={this.handleRef} />;
+    return (
+      <div
+        id={this.props.id}
+        className={this.props.className}
+        ref={this.handleRef}
+      />
+    );
   }
 }
 

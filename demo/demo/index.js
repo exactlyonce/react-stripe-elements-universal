@@ -3,7 +3,7 @@
 import React from 'react';
 import {render} from 'react-dom';
 
-import type {StripeProps} from '../src/components/inject';
+import type {InjectedProps} from '../../src/components/inject';
 
 import {
   CardElement,
@@ -15,7 +15,7 @@ import {
   StripeProvider,
   Elements,
   injectStripe,
-} from '../src/index';
+} from '../../src/index';
 
 const handleBlur = () => {
   console.log('[blur]');
@@ -52,13 +52,16 @@ const createOptions = (fontSize: string) => {
   };
 };
 
-class _CardForm extends React.Component<{
-  fontSize: string,
-  stripe: StripeProps,
-}> {
+class _CardForm extends React.Component<InjectedProps & {fontSize: string}> {
   handleSubmit = ev => {
     ev.preventDefault();
-    this.props.stripe.createToken().then(payload => console.log(payload));
+    if (this.props.stripe) {
+      this.props.stripe
+        .createToken()
+        .then(payload => console.log('[token]', payload));
+    } else {
+      console.log("Stripe.js hasn't loaded yet.");
+    }
   };
   render() {
     return (
@@ -80,13 +83,16 @@ class _CardForm extends React.Component<{
 }
 const CardForm = injectStripe(_CardForm);
 
-class _SplitForm extends React.Component<{
-  fontSize: string,
-  stripe: StripeProps,
-}> {
+class _SplitForm extends React.Component<InjectedProps & {fontSize: string}> {
   handleSubmit = ev => {
     ev.preventDefault();
-    this.props.stripe.createToken().then(payload => console.log(payload));
+    if (this.props.stripe) {
+      this.props.stripe
+        .createToken()
+        .then(payload => console.log('[token]', payload));
+    } else {
+      console.log("Stripe.js hasn't loaded yet.");
+    }
   };
   render() {
     return (
@@ -139,7 +145,7 @@ class _SplitForm extends React.Component<{
 const SplitForm = injectStripe(_SplitForm);
 
 class _PaymentRequestForm extends React.Component<
-  {stripe: StripeProps},
+  InjectedProps,
   {
     canMakePayment: boolean,
     paymentRequest: Object,
@@ -243,4 +249,12 @@ const App = () => {
     </StripeProvider>
   );
 };
-render(<App />, document.querySelector('.App'));
+
+const appElement = document.querySelector('.App');
+if (appElement) {
+  render(<App />, appElement);
+} else {
+  console.error(
+    'We could not find an HTML element with a class name of "App" in the DOM. Please make sure you copy index.html as well for this demo to work.'
+  );
+}

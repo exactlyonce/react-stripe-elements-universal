@@ -7,12 +7,12 @@
 
 <!-- Delete this section if this change involves no API changes. -->
 
-Copy [this template](.github/API_REVIEW.md) **or** link to an API review issue.
+Copy [this template](https://github.com/stripe/react-stripe-elements/tree/master/.github/API_REVIEW.md) **or** link to an API review issue.
 
 
 ### Testing & documentation
 
-<!-- How did you test this change? This can be as simple as "I wrote unit tests..." -->
+<!-- How did you test this change? This can be as simple as "I wrote unit tests...". As a suggestion: double check your change works with *Split Fields*. -->
 
 <!-- If this is an API change, have you updated the documentation? -->
 

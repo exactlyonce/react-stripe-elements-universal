@@ -24,7 +24,7 @@ describe('PaymentRequestButtonElement', () => {
       create: jest.fn().mockReturnValue(elementMock),
     };
     context = {
-      elements: elementsMock,
+      addElementsLoadListener: fn => fn(elementsMock),
       registerElement: jest.fn(),
       unregisterElement: jest.fn(),
     };
@@ -33,6 +33,18 @@ describe('PaymentRequestButtonElement', () => {
       on: jest.fn(),
       show: jest.fn(),
     };
+  });
+
+  it('should pass the id to the DOM element', () => {
+    const id = 'my-id';
+    const element = shallow(
+      <PaymentRequestButtonElement
+        id={id}
+        paymentRequest={paymentRequestMock}
+      />,
+      {context}
+    );
+    expect(element.find(`#${id}`)).toBeTruthy();
   });
 
   it('should pass the className to the DOM element', () => {
@@ -50,6 +62,11 @@ describe('PaymentRequestButtonElement', () => {
   it('should call onReady and elementRef', () => {
     const onReadyMock = jest.fn();
     const elementRefMock = jest.fn();
+
+    const originalConsoleWarn = global.console.warn;
+    const mockConsoleWarn = jest.fn();
+    global.console.warn = mockConsoleWarn;
+
     mount(
       <PaymentRequestButtonElement
         onReady={onReadyMock}
@@ -60,8 +77,11 @@ describe('PaymentRequestButtonElement', () => {
     );
 
     expect(elementMock.on.mock.calls[0][0]).toBe('ready');
-    expect(onReadyMock).toHaveBeenCalled();
+    expect(onReadyMock).toHaveBeenCalledWith(elementMock);
     expect(elementRefMock).toHaveBeenCalledWith(elementMock);
+    expect(mockConsoleWarn.mock.calls[0][0]).toMatch(/deprecated/);
+
+    global.console.warn = originalConsoleWarn;
   });
 
   it('should not register the Element', () => {

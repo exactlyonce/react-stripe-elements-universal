@@ -2,11 +2,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import shallowEqual from '../utils/shallowEqual';
-import type {ElementContext} from './Elements';
+import {type ElementContext, elementContextTypes} from './Elements';
 
 type Props = {
-  className: string,
-  elementRef: Function,
+  id?: string,
+  className?: string,
+  // DEPRECATED; remove in 2.0.0+
+  elementRef?: Function,
   onChange: Function,
   onBlur: Function,
   onFocus: Function,
@@ -17,6 +19,7 @@ const noop = () => {};
 
 const _extractOptions = (props: Props): Object => {
   const {
+    id,
     className,
     elementRef,
     onChange,
@@ -31,6 +34,7 @@ const _extractOptions = (props: Props): Object => {
 const Element = (type: string, hocOptions: {sourceType?: string} = {}) =>
   class extends React.Component<Props> {
     static propTypes = {
+      id: PropTypes.string,
       className: PropTypes.string,
       elementRef: PropTypes.func,
       onChange: PropTypes.func,
@@ -39,38 +43,41 @@ const Element = (type: string, hocOptions: {sourceType?: string} = {}) =>
       onReady: PropTypes.func,
     };
     static defaultProps = {
-      className: '',
-      elementRef: noop,
+      id: undefined,
+      className: undefined,
+      elementRef: undefined,
       onChange: noop,
       onBlur: noop,
       onFocus: noop,
       onReady: noop,
     };
 
-    static contextTypes = {
-      elements: PropTypes.object,
-      registerElement: PropTypes.func.isRequired,
-      unregisterElement: PropTypes.func.isRequired,
-    };
+    static contextTypes = elementContextTypes;
 
     constructor(props: Props, context: ElementContext) {
       super(props, context);
 
+      this._element = null;
+
       const options = _extractOptions(this.props);
-
-      // Stripe.js browser-only check
-      if (typeof window === 'object') {
-        this._element = this.context.elements.create(type, options);
-        this._setupEventListeners();
-      }
-
+      // We keep track of the extracted options on this._options to avoid re-rendering.
+      // (We would unnecessarily re-render if we were tracking them with state.)
       this._options = options;
     }
 
     componentDidMount() {
-      this._element.mount(this._ref);
-      if (hocOptions.sourceType) {
-        this.context.registerElement(hocOptions.sourceType, this._element);
+      if (typeof window === 'object') {
+        this.context.addElementsLoadListener((elements: ElementsShape) => {
+          const element = elements.create(type, this._options);
+          this._element = element;
+
+          this._setupEventListeners(element);
+
+          element.mount(this._ref);
+          if (hocOptions.sourceType) {
+            this.context.registerElement(hocOptions.sourceType, element);
+          }
+        });
       }
     }
     componentWillReceiveProps(nextProps: Props) {
@@ -80,38 +87,57 @@ const Element = (type: string, hocOptions: {sourceType?: string} = {}) =>
         !shallowEqual(options, this._options)
       ) {
         this._options = options;
-        this._element.update(options);
+        if (this._element) {
+          this._element.update(options);
+        }
       }
     }
     componentWillUnmount() {
-      this._element.destroy();
-      this.context.unregisterElement(this._element);
+      if (this._element) {
+        const element = this._element;
+        element.destroy();
+        this.context.unregisterElement(element);
+      }
     }
 
     context: ElementContext;
-    _element: ElementShape;
+    _element: ElementShape | null;
     _ref: ?HTMLElement;
     _options: Object;
 
-    _setupEventListeners() {
-      this._element.on('ready', () => {
-        this.props.elementRef(this._element);
-        this.props.onReady();
+    _setupEventListeners(element: ElementShape) {
+      element.on('ready', () => {
+        if (this.props.elementRef) {
+          if (window.console && window.console.warn) {
+            console.warn(
+              "'elementRef()' is deprecated and will be removed in a future version of react-stripe-elements. Please use 'onReady()' instead."
+            );
+          }
+          this.props.elementRef(this._element);
+        }
+        this.props.onReady(this._element);
       });
 
-      this._element.on('change', change => {
+      element.on('change', change => {
         this.props.onChange(change);
       });
 
-      this._element.on('blur', (...args) => this.props.onBlur(...args));
-      this._element.on('focus', (...args) => this.props.onFocus(...args));
+      element.on('blur', (...args) => this.props.onBlur(...args));
+      element.on('focus', (...args) => this.props.onFocus(...args));
     }
 
     handleRef = (ref: ?HTMLElement) => {
       this._ref = ref;
     };
+
     render() {
-      return <div className={this.props.className} ref={this.handleRef} />;
+      return (
+        <div
+          id={this.props.id}
+          className={this.props.className}
+          ref={this.handleRef}
+        />
+      );
     }
   };
 

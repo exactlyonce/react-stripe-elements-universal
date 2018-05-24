@@ -13,6 +13,12 @@ import {
   PostalCodeElement,
 } from './index';
 
+class PureWrapper extends React.PureComponent {
+  render() {
+    return <div>{this.props.children}</div>;
+  }
+}
+
 describe('index', () => {
   let elementMock;
   let elementsMock;
@@ -70,6 +76,22 @@ describe('index', () => {
       </StripeProvider>
     );
     expect(app.text()).toMatch(/Hello world/);
+  });
+
+  it("shouldn't choke on pure components", () => {
+    const Checkout = WrappedCheckout('token');
+    const app = mount(
+      <StripeProvider apiKey="pk_test_xxx">
+        <Elements>
+          <PureWrapper>
+            <Checkout>
+              <CardElement />
+            </Checkout>
+          </PureWrapper>
+        </Elements>
+      </StripeProvider>
+    );
+    expect(() => app.find('form').simulate('submit')).not.toThrow();
   });
 
   describe('createToken', () => {
@@ -224,6 +246,18 @@ describe('index', () => {
 
     describe('createToken', () => {
       it('should throw when not in Elements', () => {
+        // Prevent the expected console.error from react to keep the test output clean
+        const originalConsoleError = global.console.error;
+        global.console.error = msg => {
+          if (
+            !msg.startsWith(
+              'Warning: Failed context type: The context `getRegisteredElements` is marked as required'
+            )
+          ) {
+            originalConsoleError(msg);
+          }
+        };
+
         const Checkout = WrappedCheckout('token');
         expect(() =>
           mount(
@@ -236,6 +270,8 @@ describe('index', () => {
             </StripeProvider>
           )
         ).toThrowError('Elements context');
+
+        global.console.error = originalConsoleError;
       });
 
       it('should throw when no Element found', () => {
